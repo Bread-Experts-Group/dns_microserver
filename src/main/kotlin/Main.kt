@@ -66,7 +66,11 @@ fun main(args: Array<String>) {
 									(question.qType != DNSType.ALL_RECORDS && question.qType != DNSType.CNAME__CANONICAL_NAME) &&
 									it.extension == "CNAME"
 								) {
-									val reference = it.readText().substringAfter('\n').trim().split('.')
+									val stream = it.inputStream()
+									stream.scanDelimiter("\n")
+									val reference = stream.readAllBytes().decodeToString()
+										.trim().lowercase().split('.').filter(String::isNotEmpty)
+									stream.close()
 									addAnswers(reference.take(reference.size - 2).joinToString("."))
 								} else answers.add(getAnswerFromFile(question.name, it))
 							}

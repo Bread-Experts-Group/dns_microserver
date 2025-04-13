@@ -83,6 +83,7 @@ fun getAnswerFromFile(name: String, file: File): DNSResourceRecord {
 			}
 		}
 	}
+	stream.close()
 	return DNSResourceRecord(
 		name,
 		DNSType.nameMapping.getValue(file.extension),
