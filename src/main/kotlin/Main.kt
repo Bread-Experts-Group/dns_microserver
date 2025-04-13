@@ -63,7 +63,10 @@ fun main(args: Array<String>) {
 								(lookingFor.isEmpty() && it.name.startsWith('@', true)) ||
 								(lookingFor.isNotEmpty() && it.name.startsWith(lookingFor, true))
 							) {
-								if (it.name.endsWith("CNAME")) {
+								if (
+									(question.qType != DNSType.ALL_RECORDS && question.qType != DNSType.CNAME__CANONICAL_NAME) &&
+									it.name.endsWith("CNAME")
+								) {
 									val reference = it.readText().substringAfter('\n').trim().split('.')
 									addAnswers(reference.take(reference.size - 2).joinToString("."))
 								} else answers.add(getAnswerFromFile(question.name, it))
