@@ -33,7 +33,7 @@ fun getAnswerFromFile(name: String, file: File): DNSResourceRecord {
 		"HTTPS" -> ByteArrayOutputStream().use {
 			it.write16(stream.scanDelimiter("\n").toInt())
 			it.write(writeLabel(stream.scanDelimiter("\n")))
-			while (stream.available() == 0) {
+			while (stream.available() > 0) {
 				val parameter = HTTPSParameters.valueOf(stream.scanDelimiter("\n"))
 				it.write16(parameter.code)
 				when (parameter) {
