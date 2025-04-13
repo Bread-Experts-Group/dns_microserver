@@ -53,8 +53,7 @@ fun main(args: Array<String>) {
 					val records =
 						if (question.qType == DNSType.ALL_RECORDS) thisRecord.listFiles()
 						else thisRecord.listFiles {
-							it.name.endsWith(question.qType.name.substringBefore("__"), true) ||
-									it.name == "$localPath.CNAME"
+							it.extension == question.qType.name.substringBefore("__") || it.name == "$localPath.CNAME"
 						}
 					if (records.isNullOrEmpty()) continue
 					fun addAnswers(lookingFor: String) {
@@ -65,7 +64,7 @@ fun main(args: Array<String>) {
 							) {
 								if (
 									(question.qType != DNSType.ALL_RECORDS && question.qType != DNSType.CNAME__CANONICAL_NAME) &&
-									it.name.endsWith("CNAME")
+									it.extension == "CNAME"
 								) {
 									val reference = it.readText().substringAfter('\n').trim().split('.')
 									addAnswers(reference.take(reference.size - 2).joinToString("."))
