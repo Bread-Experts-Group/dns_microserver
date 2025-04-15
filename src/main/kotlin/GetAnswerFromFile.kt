@@ -4,6 +4,8 @@ import bread_experts_group.dns.DNSClass
 import bread_experts_group.dns.DNSResourceRecord
 import bread_experts_group.dns.DNSType
 import bread_experts_group.dns.https.HTTPSParameters
+import bread_experts_group.dns.ssh.SSHAlgorithm
+import bread_experts_group.dns.ssh.SSHType
 import bread_experts_group.dns.writeLabel
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -36,6 +38,13 @@ fun getAnswerFromFile(name: String, file: File): DNSResourceRecord {
 			it.write32(stream.scanDelimiter("\n").toInt())
 			it.write32(stream.scanDelimiter("\n").toInt())
 			it.write32(stream.readAllBytes().decodeToString().trim().toInt())
+			it.toByteArray()
+		}
+
+		"SSHFP" -> ByteArrayOutputStream().use {
+			it.write(SSHAlgorithm.valueOf(stream.scanDelimiter("\n")).code)
+			it.write(SSHType.valueOf(stream.scanDelimiter("\n")).code)
+			it.writeString(stream.readAllBytes().decodeToString().trim())
 			it.toByteArray()
 		}
 

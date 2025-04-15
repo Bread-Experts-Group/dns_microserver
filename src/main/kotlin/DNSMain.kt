@@ -51,7 +51,7 @@ fun main(args: Array<String>) {
 			val socket = tcpSocket.accept()
 			Thread.currentThread().name = "TCP-${socket.remoteSocketAddress}"
 			val localLogger = Logger.getLogger("DNS TCP ${socket.remoteSocketAddress}")
-			val data = socket.inputStream.readNBytes(socket.inputStream.read16())
+			val data = socket.inputStream.readNBytes(socket.inputStream.read16().toUShort().toInt())
 			val reply = dnsExecution(localLogger, recordStore, data)
 			if (reply != null) {
 				socket.outputStream.write16(reply.size)
