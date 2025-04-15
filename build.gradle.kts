@@ -10,7 +10,7 @@ plugins {
 }
 
 group = "bread_experts_group"
-version = "1.5"
+version = "1.6"
 
 repositories {
 	mavenCentral()
@@ -27,7 +27,8 @@ tasks.test {
 	useJUnitPlatform()
 }
 application {
-	mainClass = "bread_experts_group.MainKt"
+	mainClass = "bread_experts_group.DNSMainKt"
+	applicationDefaultJvmArgs = listOf("-XX:+UseZGC", "-XX:+ZGenerational", "-Xmx256m", "-XX:SoftMaxHeapSize=128m")
 }
 
 kotlin {
