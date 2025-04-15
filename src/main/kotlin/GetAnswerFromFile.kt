@@ -13,6 +13,15 @@ fun getAnswerFromFile(name: String, file: File): DNSResourceRecord {
 	val stream = file.inputStream()
 	val ttl = stream.scanDelimiter("\n").toInt()
 	val data = when (file.extension) {
+		"CAA" -> ByteArrayOutputStream().use {
+			it.write(0)
+			val tag = stream.scanDelimiter(" ")
+			it.write(tag.length)
+			it.writeString(tag)
+			it.writeString(stream.readAllBytes().decodeToString().trim())
+			it.toByteArray()
+		}
+
 		"MX" -> ByteArrayOutputStream().use {
 			it.write16(stream.scanDelimiter("\n").toInt())
 			it.write(writeLabel(stream.readAllBytes().decodeToString().trim()))

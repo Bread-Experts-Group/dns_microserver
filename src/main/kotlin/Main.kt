@@ -10,19 +10,18 @@ import java.io.File
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetSocketAddress
+import java.util.logging.Logger
 
 fun main(args: Array<String>) {
-	Thread.currentThread().name = "DNS-Main"
-	debug("- Argument read")
+	val logger = Logger.getLogger("DNS Main")
+	logger.fine("- Argument read")
 	val (singleArgs, _) = readArgs(
 		args,
 		Flag<String>("ip", default = "0.0.0.0"),
 		Flag<Int>("port", default = 53, conv = ::stringToInt),
-		Flag<Int>("verbosity", default = 1, conv = ::stringToInt),
 		Flag<String>("records"),
 	)
-	toStringVerbosity = (singleArgs["verbosity"] as? Int) ?: toStringVerbosity
-	debug("- Socket retrieval & bind (${singleArgs["port"]})")
+	logger.fine("- Socket retrieval & bind (${singleArgs["port"]})")
 	val udpSocket = DatagramSocket(
 		InetSocketAddress(
 			singleArgs["ip"] as String,
@@ -30,7 +29,7 @@ fun main(args: Array<String>) {
 		)
 	)
 	val recordStore = File(singleArgs.getValue("records") as String).absoluteFile.normalize()
-	info("- Server loop (Record Store: $recordStore)")
+	logger.info("- Server loop (Record Store: $recordStore)")
 	Thread.ofPlatform().name("DNS").start {
 		while (true) {
 			val packet = DatagramPacket(ByteArray(65535), 65535)
@@ -39,7 +38,7 @@ fun main(args: Array<String>) {
 			try {
 				val message = DNSMessage.read(ByteArrayInputStream(packet.data))
 				if (message.reply || message.questions.isEmpty()) continue
-				info("> $message")
+				logger.finer("> $message")
 				val answers = mutableListOf<DNSResourceRecord>()
 				for (question in message.questions) {
 					var thisRecord = recordStore
@@ -84,12 +83,11 @@ fun main(args: Array<String>) {
 					DNSResponseCode.OK,
 					message.questions, answers
 				)
-				info("< $reply")
+				logger.finer("< $reply")
 				packet.setData(reply.asBytes())
 				udpSocket.send(packet)
 			} catch (e: Exception) {
-				warn(packet.data.sliceArray(0..packet.length - 1).joinToString(", ") { it.toUByte().toString(16).uppercase().padStart(2, '0') })
-				error("FAIL. ${e.stackTraceToString()}")
+				logger.severe { "FAIL. ${e.stackTraceToString()}" }
 			}
 		}
 	}
