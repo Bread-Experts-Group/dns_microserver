@@ -1,15 +1,10 @@
 package bread_experts_group
 
-import bread_experts_group.dns.DNSMessage
-import bread_experts_group.dns.DNSOpcode
-import bread_experts_group.dns.DNSResourceRecord
-import bread_experts_group.dns.DNSResponseCode
-import bread_experts_group.dns.DNSType
-import java.io.ByteArrayInputStream
 import java.io.File
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetSocketAddress
+import java.net.ServerSocket
 import java.util.logging.Logger
 
 fun main(args: Array<String>) {
@@ -21,8 +16,16 @@ fun main(args: Array<String>) {
 		Flag<Int>("port", default = 53, conv = ::stringToInt),
 		Flag<String>("records"),
 	)
-	logger.fine("- Socket retrieval & bind (${singleArgs["port"]})")
+	logger.fine("- Socket retrieval & bind UDP (${singleArgs["port"]})")
 	val udpSocket = DatagramSocket(
+		InetSocketAddress(
+			singleArgs["ip"] as String,
+			singleArgs["port"] as Int
+		)
+	)
+	logger.fine("- Socket retrieval & bind TCP (${singleArgs["port"]})")
+	val tcpSocket = ServerSocket()
+	tcpSocket.bind(
 		InetSocketAddress(
 			singleArgs["ip"] as String,
 			singleArgs["port"] as Int
@@ -30,64 +33,29 @@ fun main(args: Array<String>) {
 	)
 	val recordStore = File(singleArgs.getValue("records") as String).absoluteFile.normalize()
 	logger.info("- Server loop (Record Store: $recordStore)")
-	Thread.ofPlatform().name("DNS").start {
+	Thread.ofPlatform().name("DNS UDP").start {
 		while (true) {
 			val packet = DatagramPacket(ByteArray(65535), 65535)
 			udpSocket.receive(packet)
 			Thread.currentThread().name = "DNS-${packet.socketAddress}"
-			try {
-				val message = DNSMessage.read(ByteArrayInputStream(packet.data))
-				if (message.reply || message.questions.isEmpty()) continue
-				logger.finer("> $message")
-				val answers = mutableListOf<DNSResourceRecord>()
-				for (question in message.questions) {
-					var thisRecord = recordStore
-					val pathParts = question.name.lowercase().split('.').filter(String::isNotEmpty)
-					if (pathParts.size < 2) continue
-					for (path in pathParts.takeLast(2).reversed()) {
-						thisRecord = thisRecord.resolve(path)
-						if (!thisRecord.exists() || thisRecord.isFile) break
-					}
-					val localPath = pathParts.take(pathParts.size - 2).joinToString(".")
-					val records =
-						if (question.qType == DNSType.ALL_RECORDS) thisRecord.listFiles()
-						else thisRecord.listFiles {
-							it.extension == question.qType.name.substringBefore("__") || it.name == "$localPath.CNAME"
-						}
-					if (records.isNullOrEmpty()) continue
-					fun addAnswers(lookingFor: String) {
-						records.forEach {
-							if (
-								(lookingFor.isEmpty() && it.name.startsWith('@', true)) ||
-								(lookingFor.isNotEmpty() && it.name.startsWith(lookingFor, true))
-							) {
-								if (
-									(question.qType != DNSType.ALL_RECORDS && question.qType != DNSType.CNAME__CANONICAL_NAME) &&
-									it.extension == "CNAME"
-								) {
-									val stream = it.inputStream()
-									stream.scanDelimiter("\n")
-									val reference = stream.readAllBytes().decodeToString()
-										.trim().lowercase().split('.').filter(String::isNotEmpty)
-									stream.close()
-									addAnswers(reference.take(reference.size - 2).joinToString("."))
-								} else answers.add(getAnswerFromFile(question.name, it))
-							}
-						}
-					}
-					addAnswers(localPath)
-				}
-				val reply = DNSMessage.reply(
-					message.transactionID, DNSOpcode.QUERY,
-					true, false, false,
-					DNSResponseCode.OK,
-					message.questions, answers
-				)
-				logger.finer("< $reply")
-				packet.setData(reply.asBytes())
+			val localLogger = Logger.getLogger("DNS UDP ${packet.socketAddress}")
+			val reply = dnsExecution(localLogger, recordStore, packet.data)
+			if (reply != null) {
+				packet.setData(reply)
 				udpSocket.send(packet)
-			} catch (e: Exception) {
-				logger.severe { "FAIL. ${e.stackTraceToString()}" }
+			}
+		}
+	}
+	Thread.ofPlatform().name("DNS TCP").start {
+		while (true) {
+			val socket = tcpSocket.accept()
+			Thread.currentThread().name = "TCP-${socket.remoteSocketAddress}"
+			val localLogger = Logger.getLogger("DNS TCP ${socket.remoteSocketAddress}")
+			val data = socket.inputStream.readNBytes(socket.inputStream.read16())
+			val reply = dnsExecution(localLogger, recordStore, data)
+			if (reply != null) {
+				socket.outputStream.write16(reply.size)
+				socket.outputStream.write(reply)
 			}
 		}
 	}
