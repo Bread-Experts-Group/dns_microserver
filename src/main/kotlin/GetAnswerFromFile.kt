@@ -44,7 +44,12 @@ fun getAnswerFromFile(name: String, file: File): DNSResourceRecord {
 		"SSHFP" -> ByteArrayOutputStream().use {
 			it.write(SSHAlgorithm.valueOf(stream.scanDelimiter("\n")).code)
 			it.write(SSHType.valueOf(stream.scanDelimiter("\n")).code)
-			it.writeString(stream.readAllBytes().decodeToString().trim())
+			it.write(
+				(stream.readAllBytes().decodeToString().trim())
+					.chunked(2)
+					.map { it.toInt(16).toByte() }
+					.toByteArray()
+			)
 			it.toByteArray()
 		}
 
