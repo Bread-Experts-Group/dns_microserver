@@ -37,20 +37,27 @@ fun main(args: Array<String>) {
 	logger.info("- Server loop (Record Store: $recordStore)")
 	Thread.ofPlatform().name("DNS UDP").start {
 		while (true) {
-			val packet = DatagramPacket(ByteArray(65535), 65535)
-			udpSocket.receive(packet)
-			Thread.currentThread().name = "DNS-${packet.socketAddress}"
-			val localLogger = Logger.getLogger("DNS UDP ${packet.socketAddress}")
-			val reply = dnsExecution(localLogger, recordStore, packet.data)
-			if (reply != null) {
-				packet.setData(reply)
-				udpSocket.send(packet)
+			Thread.currentThread().name = "DNS-UDP"
+			try {
+				val packet = DatagramPacket(ByteArray(65000), 65000)
+				udpSocket.receive(packet)
+				Thread.currentThread().name = "UDP-${packet.socketAddress}"
+				val localLogger = Logger.getLogger("DNS UDP ${packet.socketAddress}")
+				val reply = dnsExecution(localLogger, recordStore, packet.data)
+				if (reply != null) {
+					if (reply.size > 512) reply[2] = (reply[2].toInt() or 0b10).toByte()
+					packet.setData(reply, 0, 512)
+					udpSocket.send(packet)
+				}
+			} catch (e: Exception) {
+				logger.severe { "UDP FAIL. ${e.stackTraceToString()}" }
 			}
 		}
 	}
 	Thread.ofPlatform().name("DNS TCP").start {
 		while (true) {
 			val socket = tcpSocket.accept()
+			Thread.currentThread().name = "DNS-TCP"
 			try {
 				Thread.currentThread().name = "TCP-${socket.remoteSocketAddress}"
 				val localLogger = Logger.getLogger("DNS TCP ${socket.remoteSocketAddress}")
@@ -64,7 +71,6 @@ fun main(args: Array<String>) {
 				logger.severe { "TCP FAIL. ${e.stackTraceToString()}" }
 				socket.close()
 			}
-			Thread.currentThread().name = "DNS TCP"
 		}
 	}
 }
