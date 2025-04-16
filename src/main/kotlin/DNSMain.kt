@@ -1,5 +1,6 @@
 package bread_experts_group
 
+import bread_experts_group.rmi.InstrumentationServiceServer
 import java.io.File
 import java.net.DatagramPacket
 import java.net.DatagramSocket
@@ -8,6 +9,7 @@ import java.net.ServerSocket
 import java.util.logging.Logger
 
 fun main(args: Array<String>) {
+	InstrumentationServiceServer.attach("DNS")
 	val logger = Logger.getLogger("DNS Main")
 	logger.fine("- Argument read")
 	val (singleArgs, _) = readArgs(
@@ -49,14 +51,20 @@ fun main(args: Array<String>) {
 	Thread.ofPlatform().name("DNS TCP").start {
 		while (true) {
 			val socket = tcpSocket.accept()
-			Thread.currentThread().name = "TCP-${socket.remoteSocketAddress}"
-			val localLogger = Logger.getLogger("DNS TCP ${socket.remoteSocketAddress}")
-			val data = socket.inputStream.readNBytes(socket.inputStream.read16().toUShort().toInt())
-			val reply = dnsExecution(localLogger, recordStore, data)
-			if (reply != null) {
-				socket.outputStream.write16(reply.size)
-				socket.outputStream.write(reply)
+			try {
+				Thread.currentThread().name = "TCP-${socket.remoteSocketAddress}"
+				val localLogger = Logger.getLogger("DNS TCP ${socket.remoteSocketAddress}")
+				val data = socket.inputStream.readNBytes(socket.inputStream.read16ui())
+				val reply = dnsExecution(localLogger, recordStore, data)
+				if (reply != null) {
+					socket.outputStream.write16(reply.size)
+					socket.outputStream.write(reply)
+				}
+			} catch (e: Exception) {
+				logger.severe { "TCP FAIL. ${e.stackTraceToString()}" }
+				socket.close()
 			}
+			Thread.currentThread().name = "DNS TCP"
 		}
 	}
 }
