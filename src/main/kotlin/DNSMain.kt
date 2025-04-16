@@ -46,7 +46,7 @@ fun main(args: Array<String>) {
 				val localLogger = Logger.getLogger("DNS UDP ${packet.socketAddress}")
 				val reply = dnsExecution(localLogger, recordStore, packet.data)
 				if (reply != null) {
-					if (reply.size > 512) reply[2] = (reply[2].toInt() or 0b01000000).toByte()
+					if (reply.size > 512) reply[2] = (reply[2].toInt() or 0b10).toByte()
 					packet.setData(reply, 0, min(512, reply.size))
 					udpSocket.send(packet)
 				}
