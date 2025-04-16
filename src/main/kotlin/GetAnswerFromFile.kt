@@ -13,7 +13,7 @@ import java.net.Inet4Address
 
 fun getAnswerFromFile(name: String, file: File): DNSResourceRecord {
 	val stream = file.inputStream()
-	val ttl = stream.scanDelimiter("\n").toInt()
+	val ttl = stream.scanDelimiter("\n").toLong()
 	val data = when (file.extension) {
 		"CAA" -> ByteArrayOutputStream().use {
 			it.write(0)
