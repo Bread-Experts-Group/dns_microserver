@@ -9,7 +9,7 @@ import java.io.ByteArrayInputStream
 import java.io.File
 import java.util.logging.Logger
 
-fun dnsExecution(logger: Logger, recordStore: File, data: ByteArray): ByteArray? {
+fun dnsExecution(logger: Logger, recordStore: File, data: ByteArray, maxLength: Int? = null): ByteArray? {
 	try {
 		val message = DNSMessage.read(ByteArrayInputStream(data))
 		if (message.reply || message.questions.isEmpty()) return null
@@ -53,7 +53,7 @@ fun dnsExecution(logger: Logger, recordStore: File, data: ByteArray): ByteArray?
 			addAnswers(localPath)
 		}
 		val reply = DNSMessage.reply(
-			message.transactionID, DNSOpcode.QUERY,
+			message.transactionID, maxLength, DNSOpcode.QUERY,
 			true, false, false,
 			DNSResponseCode.OK,
 			message.questions, answers
