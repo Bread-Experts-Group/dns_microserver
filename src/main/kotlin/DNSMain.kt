@@ -7,6 +7,7 @@ import java.net.DatagramSocket
 import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.util.logging.Logger
+import kotlin.math.min
 
 fun main(args: Array<String>) {
 	InstrumentationServiceServer.attach("DNS")
@@ -46,7 +47,7 @@ fun main(args: Array<String>) {
 				val reply = dnsExecution(localLogger, recordStore, packet.data)
 				if (reply != null) {
 					if (reply.size > 512) reply[2] = (reply[2].toInt() or 0b01000000).toByte()
-					packet.setData(reply, 0, 512)
+					packet.setData(reply, 0, min(512, reply.size))
 					udpSocket.send(packet)
 				}
 			} catch (e: Exception) {
