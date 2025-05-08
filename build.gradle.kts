@@ -10,17 +10,16 @@ plugins {
 }
 
 group = "bread_experts_group"
-version = "1.11"
+version = "1.0.0"
 
 repositories {
 	mavenCentral()
+	mavenLocal()
 	maven { url = uri("https://maven.javart.zip/") }
 }
 
 dependencies {
-	testImplementation(kotlin("test"))
-	implementation(kotlin("reflect"))
-	implementation("bread_experts_group:bread_server_lib-code:1.21.14")
+	implementation("org.bread_experts_group:bread_server_lib-code:2.0.10")
 }
 
 tasks.test {
@@ -94,6 +93,7 @@ publishing {
 }
 signing {
 	useGpgCmd()
+	sign(publishing.publications["mavenKotlinDist"])
 	sign(publishing.publications["mavenKotlin"])
 }
 tasks.javadoc {

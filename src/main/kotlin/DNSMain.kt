@@ -1,6 +1,10 @@
 package bread_experts_group
 
-import bread_experts_group.rmi.InstrumentationServiceServer
+import org.bread_experts_group.Flag
+import org.bread_experts_group.readArgs
+import org.bread_experts_group.socket.read16ui
+import org.bread_experts_group.socket.write16
+import org.bread_experts_group.stringToInt
 import java.io.File
 import java.net.DatagramPacket
 import java.net.DatagramSocket
@@ -9,13 +13,12 @@ import java.net.ServerSocket
 import java.util.logging.Logger
 
 fun main(args: Array<String>) {
-	InstrumentationServiceServer.attach("DNS")
 	val logger = Logger.getLogger("DNS Main")
 	logger.fine("- Argument read")
 	val (singleArgs, _) = readArgs(
 		args,
-		Flag<String>("ip", default = "0.0.0.0"),
-		Flag<Int>("port", default = 53, conv = ::stringToInt),
+		Flag("ip", default = "0.0.0.0"),
+		Flag("port", default = 53, conv = ::stringToInt),
 		Flag<String>("records"),
 	)
 	logger.fine("- Socket retrieval & bind UDP (${singleArgs["port"]})")

@@ -1,12 +1,14 @@
 package bread_experts_group
 
-import bread_experts_group.dns.DNSMessage
-import bread_experts_group.dns.DNSOpcode
-import bread_experts_group.dns.DNSResourceRecord
-import bread_experts_group.dns.DNSResponseCode
-import bread_experts_group.dns.DNSType
+import org.bread_experts_group.dns.DNSMessage
+import org.bread_experts_group.dns.DNSOpcode
+import org.bread_experts_group.dns.DNSResourceRecord
+import org.bread_experts_group.dns.DNSResponseCode
+import org.bread_experts_group.dns.DNSType
+import org.bread_experts_group.socket.scanDelimiter
 import java.io.ByteArrayInputStream
 import java.io.File
+import java.io.InputStreamReader
 import java.util.logging.Logger
 
 fun dnsExecution(logger: Logger, recordStore: File, data: ByteArray, maxLength: Int? = null): ByteArray? {
@@ -37,14 +39,17 @@ fun dnsExecution(logger: Logger, recordStore: File, data: ByteArray, maxLength: 
 						(lookingFor.isNotEmpty() && it.name.startsWith(lookingFor, true))
 					) {
 						if (
-							(question.qType != DNSType.ALL_RECORDS && question.qType != DNSType.CNAME__CANONICAL_NAME) &&
-							it.extension == "CNAME"
+							(question.qType != DNSType.ALL_RECORDS && question.qType != DNSType.CNAME__CANONICAL_NAME)
+							&& it.extension == "CNAME"
 						) {
-							val stream = it.inputStream()
-							stream.scanDelimiter("\n")
-							val reference = stream.readAllBytes().decodeToString()
-								.trim().lowercase().split('.').filter(String::isNotEmpty)
-							stream.close()
+							val reference = InputStreamReader(it.inputStream()).use { s ->
+								s.scanDelimiter("\n")
+								s.readText()
+									.trim()
+									.lowercase()
+									.split('.')
+									.filter(String::isNotEmpty)
+							}
 							addAnswers(reference.take(reference.size - 2).joinToString("."))
 						} else answers.add(getAnswerFromFile(question.name, it))
 					}
@@ -54,7 +59,7 @@ fun dnsExecution(logger: Logger, recordStore: File, data: ByteArray, maxLength: 
 		}
 		val reply = DNSMessage.reply(
 			message.transactionID, maxLength, DNSOpcode.QUERY,
-			true, false, false,
+			authoritative = true, authenticData = false, recursionAvailable = false,
 			DNSResponseCode.OK,
 			message.questions, answers
 		)

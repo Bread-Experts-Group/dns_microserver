@@ -1,112 +1,115 @@
 package bread_experts_group
 
-import bread_experts_group.dns.DNSClass
-import bread_experts_group.dns.DNSResourceRecord
-import bread_experts_group.dns.DNSType
-import bread_experts_group.dns.https.HTTPSParameters
-import bread_experts_group.dns.ssh.SSHAlgorithm
-import bread_experts_group.dns.ssh.SSHType
-import bread_experts_group.dns.writeLabel
+import org.bread_experts_group.dns.DNSClass
+import org.bread_experts_group.dns.DNSResourceRecord
+import org.bread_experts_group.dns.DNSType
+import org.bread_experts_group.dns.https.HTTPSParameters
+import org.bread_experts_group.dns.ssh.SSHAlgorithm
+import org.bread_experts_group.dns.ssh.SSHType
+import org.bread_experts_group.dns.writeLabel
+import org.bread_experts_group.socket.scanDelimiter
+import org.bread_experts_group.socket.write16
+import org.bread_experts_group.socket.write32
+import org.bread_experts_group.socket.writeString
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.FileReader
 import java.net.Inet4Address
 
-fun getAnswerFromFile(name: String, file: File): DNSResourceRecord {
-	val stream = file.inputStream()
-	val ttl = stream.scanDelimiter("\n").toLong()
+fun getAnswerFromFile(name: String, file: File): DNSResourceRecord = FileReader(file).use {
+	val ttl = it.scanDelimiter("\n").toLong()
 	val data = when (file.extension) {
-		"CAA" -> ByteArrayOutputStream().use {
-			it.write(0)
-			val tag = stream.scanDelimiter(" ")
-			it.write(tag.length)
-			it.writeString(tag)
-			it.writeString(stream.readAllBytes().decodeToString().trim())
-			it.toByteArray()
+		"CAA" -> ByteArrayOutputStream().use { d ->
+			d.write(0)
+			val tag = it.scanDelimiter(" ")
+			d.write(tag.length)
+			d.writeString(tag)
+			d.writeString(it.readText().trim())
+			d.toByteArray()
 		}
 
-		"MX" -> ByteArrayOutputStream().use {
-			it.write16(stream.scanDelimiter("\n").toInt())
-			it.write(writeLabel(stream.readAllBytes().decodeToString().trim()))
-			it.toByteArray()
+		"MX" -> ByteArrayOutputStream().use { d ->
+			d.write16(it.scanDelimiter("\n").toInt())
+			d.write(writeLabel(it.readText().trim()))
+			d.toByteArray()
 		}
 
-		"SOA" -> ByteArrayOutputStream().use {
-			it.write(writeLabel(stream.scanDelimiter("\n")))
-			it.write(writeLabel(stream.scanDelimiter("\n")))
-			it.write32(stream.scanDelimiter("\n").toInt())
-			it.write32(stream.scanDelimiter("\n").toInt())
-			it.write32(stream.scanDelimiter("\n").toInt())
-			it.write32(stream.scanDelimiter("\n").toInt())
-			it.write32(stream.readAllBytes().decodeToString().trim().toInt())
-			it.toByteArray()
+		"SOA" -> ByteArrayOutputStream().use { d ->
+			d.write(writeLabel(it.scanDelimiter("\n")))
+			d.write(writeLabel(it.scanDelimiter("\n")))
+			d.write32(it.scanDelimiter("\n").toInt())
+			d.write32(it.scanDelimiter("\n").toInt())
+			d.write32(it.scanDelimiter("\n").toInt())
+			d.write32(it.scanDelimiter("\n").toInt())
+			d.write32(it.readText().trim().toInt())
+			d.toByteArray()
 		}
 
-		"SSHFP" -> ByteArrayOutputStream().use {
-			it.write(SSHAlgorithm.valueOf(stream.scanDelimiter("\n")).code)
-			it.write(SSHType.valueOf(stream.scanDelimiter("\n")).code)
-			it.write(
-				(stream.readAllBytes().decodeToString().trim())
+		"SSHFP" -> ByteArrayOutputStream().use { d ->
+			d.write(SSHAlgorithm.valueOf(it.scanDelimiter("\n")).code)
+			d.write(SSHType.valueOf(it.scanDelimiter("\n")).code)
+			d.write(
+				(it.readText().trim())
 					.chunked(2)
-					.map { it.toInt(16).toByte() }
+					.map { c -> c.toInt(16).toByte() }
 					.toByteArray()
 			)
-			it.toByteArray()
+			d.toByteArray()
 		}
 
-		"HTTPS" -> ByteArrayOutputStream().use {
-			it.write16(stream.scanDelimiter("\n").toInt())
-			it.write(writeLabel(stream.scanDelimiter("\n")))
-			while (stream.available() > 0) {
-				val parameter = HTTPSParameters.valueOf(stream.scanDelimiter("\n"))
-				it.write16(parameter.code)
+		"HTTPS" -> ByteArrayOutputStream().use { d ->
+			d.write16(it.scanDelimiter("\n").toInt())
+			d.write(writeLabel(it.scanDelimiter("\n")))
+			while (it.ready()) {
+				val parameter = HTTPSParameters.valueOf(it.scanDelimiter("\n"))
+				d.write16(parameter.code)
 				when (parameter) {
 					HTTPSParameters.MANDATORY -> {
-						val mandatory = stream.scanDelimiter("\n").split(',')
-						it.write16(mandatory.size * 2)
-						mandatory.forEach { key -> it.write16(HTTPSParameters.valueOf(key).code) }
+						val mandatory = it.scanDelimiter("\n").split(',')
+						d.write16(mandatory.size * 2)
+						mandatory.forEach { key -> d.write16(HTTPSParameters.valueOf(key).code) }
 					}
 
 					HTTPSParameters.ADDITIONAL_SUPPORTED_PROTOCOLS -> {
-						val alpns = stream.scanDelimiter("\n").split(',')
-						it.write16(alpns.sumOf { it.length } + alpns.size)
+						val alpns = it.scanDelimiter("\n").split(',')
+						d.write16(alpns.sumOf { a -> a.length } + alpns.size)
 						alpns.forEach { alpn ->
-							it.write(alpn.length)
-							it.writeString(alpn)
+							d.write(alpn.length)
+							d.writeString(alpn)
 						}
 					}
 
 					else -> throw UnsupportedOperationException("Unsupported HTTP parameter: $parameter")
 				}
 			}
-			it.toByteArray()
+			d.toByteArray()
 		}
 
-		"HINFO" -> ByteArrayOutputStream().use {
-			val cpu = stream.scanDelimiter("\n")
-			it.write(cpu.length)
-			it.writeString(cpu)
-			val remainder = stream.readAllBytes().decodeToString().trim()
-			it.write(remainder.length)
-			it.writeString(remainder)
-			it.toByteArray()
+		"HINFO" -> ByteArrayOutputStream().use { d ->
+			val cpu = it.scanDelimiter("\n")
+			d.write(cpu.length)
+			d.writeString(cpu)
+			val remainder = it.readText().trim()
+			d.write(remainder.length)
+			d.writeString(remainder)
+			d.toByteArray()
 		}
 
 		else -> {
-			val remainder = stream.readAllBytes().decodeToString().trim()
+			val remainder = it.readText().trim()
 			when (file.extension) {
 				"A" -> Inet4Address.getByName(remainder).address
 				"NS", "PTR", "CNAME" -> writeLabel(remainder)
-				"TXT" -> ByteArrayOutputStream().use {
-					it.write(remainder.length)
-					it.writeString(remainder)
-					it.toByteArray()
+				"TXT" -> ByteArrayOutputStream().use { d ->
+					d.write(remainder.length)
+					d.writeString(remainder)
+					d.toByteArray()
 				}
 
 				else -> throw UnsupportedOperationException(file.extension)
 			}
 		}
 	}
-	stream.close()
 	return DNSResourceRecord(
 		name,
 		DNSType.nameMapping.getValue(file.extension),
