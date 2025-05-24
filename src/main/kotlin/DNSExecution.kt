@@ -1,14 +1,13 @@
-package bread_experts_group
+package org.bread_experts_group.dns_microserver
 
 import org.bread_experts_group.dns.DNSMessage
 import org.bread_experts_group.dns.DNSOpcode
 import org.bread_experts_group.dns.DNSResourceRecord
 import org.bread_experts_group.dns.DNSResponseCode
 import org.bread_experts_group.dns.DNSType
-import org.bread_experts_group.socket.scanDelimiter
+import org.bread_experts_group.stream.scanDelimiter
 import java.io.ByteArrayInputStream
 import java.io.File
-import java.io.InputStreamReader
 import java.util.logging.Logger
 
 fun dnsExecution(logger: Logger, recordStore: File, data: ByteArray, maxLength: Int? = null): ByteArray? {
@@ -42,10 +41,9 @@ fun dnsExecution(logger: Logger, recordStore: File, data: ByteArray, maxLength: 
 							(question.qType != DNSType.ALL_RECORDS && question.qType != DNSType.CNAME__CANONICAL_NAME)
 							&& it.extension == "CNAME"
 						) {
-							val reference = InputStreamReader(it.inputStream()).use { s ->
+							val reference = it.inputStream().use { s ->
 								s.scanDelimiter("\n")
-								s.readText()
-									.trim()
+								s.readAllBytes().decodeToString().trim()
 									.lowercase()
 									.split('.')
 									.filter(String::isNotEmpty)

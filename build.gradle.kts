@@ -9,25 +9,28 @@ plugins {
 	application
 }
 
-group = "bread_experts_group"
-version = "1.0.0"
+group = "org.bread_experts_group"
+version = "2.0.0"
 
 repositories {
 	mavenCentral()
-	mavenLocal()
 	maven { url = uri("https://maven.javart.zip/") }
 }
 
 dependencies {
-	implementation("org.bread_experts_group:bread_server_lib-code:2.0.10")
+	implementation("org.bread_experts_group:bread_server_lib-code:2.8.1")
 }
 
 tasks.test {
 	useJUnitPlatform()
 }
 application {
-	mainClass = "bread_experts_group.DNSMainKt"
-	applicationDefaultJvmArgs = listOf("-XX:+UseZGC", "-XX:+ZGenerational", "-Xmx256m", "-XX:SoftMaxHeapSize=128m")
+	mainClass = "org.bread_experts_group.dns_microserver.DNSMainKt"
+	applicationDefaultJvmArgs = listOf(
+		"-XX:+UseZGC", "-Xms256m", "-Xmx256m", "-XX:SoftMaxHeapSize=128m", "-server",
+		"-XX:MaxDirectMemorySize=128m", "-XX:+AlwaysPreTouch", "-XX:+UseLargePages",
+		"-XX:+DisableExplicitGC", "-XX:MaxTenuringThreshold=1", "-XX:MaxGCPauseMillis=20"
+	)
 }
 
 kotlin {

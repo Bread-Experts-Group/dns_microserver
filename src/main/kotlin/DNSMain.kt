@@ -1,25 +1,39 @@
-package bread_experts_group
+package org.bread_experts_group.dns_microserver
 
 import org.bread_experts_group.Flag
+import org.bread_experts_group.logging.ColoredLogger
 import org.bread_experts_group.readArgs
-import org.bread_experts_group.socket.read16ui
-import org.bread_experts_group.socket.write16
+import org.bread_experts_group.stream.read16ui
+import org.bread_experts_group.stream.write16
 import org.bread_experts_group.stringToInt
 import java.io.File
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetSocketAddress
 import java.net.ServerSocket
-import java.util.logging.Logger
 
 fun main(args: Array<String>) {
-	val logger = Logger.getLogger("DNS Main")
+	val logger = ColoredLogger.newLogger("DNS Main")
 	logger.fine("- Argument read")
 	val (singleArgs, _) = readArgs(
 		args,
-		Flag("ip", default = "0.0.0.0"),
-		Flag("port", default = 53, conv = ::stringToInt),
-		Flag<String>("records"),
+		"dns_microserver",
+		"Distribution of software for Bread Experts Group resolver/name servers for DNS.",
+		Flag(
+			"ip",
+			"The IP address on which to serve DNS queries.",
+			default = "0.0.0.0"
+		),
+		Flag(
+			"port",
+			"The TCP / UDP port on which to serve DNS queries on.",
+			default = 53, conv = ::stringToInt
+		),
+		Flag<String>(
+			"records",
+			"The DNS records to serve for each domain; structure: <TLD>/<domain>/[@ | subdomain].<TYPE>",
+			required = 1
+		),
 	)
 	logger.fine("- Socket retrieval & bind UDP (${singleArgs["port"]})")
 	val udpSocket = DatagramSocket(
@@ -45,7 +59,7 @@ fun main(args: Array<String>) {
 				val packet = DatagramPacket(ByteArray(65000), 65000)
 				udpSocket.receive(packet)
 				Thread.currentThread().name = "UDP-${packet.socketAddress}"
-				val localLogger = Logger.getLogger("DNS UDP ${packet.socketAddress}")
+				val localLogger = ColoredLogger.newLogger("DNS UDP ${packet.socketAddress}")
 				val reply = dnsExecution(localLogger, recordStore, packet.data, 512)
 				if (reply != null) {
 					packet.setData(reply)
@@ -62,7 +76,7 @@ fun main(args: Array<String>) {
 			Thread.currentThread().name = "DNS-TCP"
 			try {
 				Thread.currentThread().name = "TCP-${socket.remoteSocketAddress}"
-				val localLogger = Logger.getLogger("DNS TCP ${socket.remoteSocketAddress}")
+				val localLogger = ColoredLogger.newLogger("DNS TCP ${socket.remoteSocketAddress}")
 				val data = socket.inputStream.readNBytes(socket.inputStream.read16ui())
 				val reply = dnsExecution(localLogger, recordStore, data)
 				if (reply != null) {

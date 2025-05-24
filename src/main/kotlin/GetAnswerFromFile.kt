@@ -1,4 +1,4 @@
-package bread_experts_group
+package org.bread_experts_group.dns_microserver
 
 import org.bread_experts_group.dns.DNSClass
 import org.bread_experts_group.dns.DNSResourceRecord
@@ -7,16 +7,18 @@ import org.bread_experts_group.dns.https.HTTPSParameters
 import org.bread_experts_group.dns.ssh.SSHAlgorithm
 import org.bread_experts_group.dns.ssh.SSHType
 import org.bread_experts_group.dns.writeLabel
-import org.bread_experts_group.socket.scanDelimiter
-import org.bread_experts_group.socket.write16
-import org.bread_experts_group.socket.write32
-import org.bread_experts_group.socket.writeString
+import org.bread_experts_group.stream.scanDelimiter
+import org.bread_experts_group.stream.write16
+import org.bread_experts_group.stream.write32
+import org.bread_experts_group.stream.writeString
 import java.io.ByteArrayOutputStream
 import java.io.File
-import java.io.FileReader
+import java.io.FileInputStream
 import java.net.Inet4Address
 
-fun getAnswerFromFile(name: String, file: File): DNSResourceRecord = FileReader(file).use {
+fun getAnswerFromFile(name: String, file: File): DNSResourceRecord = FileInputStream(file).use {
+	fun readRemainder() = it.readAllBytes().decodeToString().trim()
+
 	val ttl = it.scanDelimiter("\n").toLong()
 	val data = when (file.extension) {
 		"CAA" -> ByteArrayOutputStream().use { d ->
@@ -24,13 +26,13 @@ fun getAnswerFromFile(name: String, file: File): DNSResourceRecord = FileReader(
 			val tag = it.scanDelimiter(" ")
 			d.write(tag.length)
 			d.writeString(tag)
-			d.writeString(it.readText().trim())
+			d.writeString(readRemainder())
 			d.toByteArray()
 		}
 
 		"MX" -> ByteArrayOutputStream().use { d ->
 			d.write16(it.scanDelimiter("\n").toInt())
-			d.write(writeLabel(it.readText().trim()))
+			d.write(writeLabel(readRemainder()))
 			d.toByteArray()
 		}
 
@@ -41,7 +43,7 @@ fun getAnswerFromFile(name: String, file: File): DNSResourceRecord = FileReader(
 			d.write32(it.scanDelimiter("\n").toInt())
 			d.write32(it.scanDelimiter("\n").toInt())
 			d.write32(it.scanDelimiter("\n").toInt())
-			d.write32(it.readText().trim().toInt())
+			d.write32(readRemainder().toInt())
 			d.toByteArray()
 		}
 
@@ -49,7 +51,7 @@ fun getAnswerFromFile(name: String, file: File): DNSResourceRecord = FileReader(
 			d.write(SSHAlgorithm.valueOf(it.scanDelimiter("\n")).code)
 			d.write(SSHType.valueOf(it.scanDelimiter("\n")).code)
 			d.write(
-				(it.readText().trim())
+				readRemainder()
 					.chunked(2)
 					.map { c -> c.toInt(16).toByte() }
 					.toByteArray()
@@ -60,7 +62,7 @@ fun getAnswerFromFile(name: String, file: File): DNSResourceRecord = FileReader(
 		"HTTPS" -> ByteArrayOutputStream().use { d ->
 			d.write16(it.scanDelimiter("\n").toInt())
 			d.write(writeLabel(it.scanDelimiter("\n")))
-			while (it.ready()) {
+			while (it.available() > 0) {
 				val parameter = HTTPSParameters.valueOf(it.scanDelimiter("\n"))
 				d.write16(parameter.code)
 				when (parameter) {
@@ -89,14 +91,14 @@ fun getAnswerFromFile(name: String, file: File): DNSResourceRecord = FileReader(
 			val cpu = it.scanDelimiter("\n")
 			d.write(cpu.length)
 			d.writeString(cpu)
-			val remainder = it.readText().trim()
+			val remainder = readRemainder()
 			d.write(remainder.length)
 			d.writeString(remainder)
 			d.toByteArray()
 		}
 
 		else -> {
-			val remainder = it.readText().trim()
+			val remainder = readRemainder()
 			when (file.extension) {
 				"A" -> Inet4Address.getByName(remainder).address
 				"NS", "PTR", "CNAME" -> writeLabel(remainder)
