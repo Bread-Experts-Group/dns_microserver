@@ -15,6 +15,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileInputStream
 import java.net.Inet4Address
+import java.net.Inet6Address
 
 fun getAnswerFromFile(name: String, file: File): DNSResourceRecord = FileInputStream(file).use {
 	fun readRemainder() = it.readAllBytes().decodeToString().trim()
@@ -65,24 +66,37 @@ fun getAnswerFromFile(name: String, file: File): DNSResourceRecord = FileInputSt
 			while (it.available() > 0) {
 				val parameter = HTTPSParameters.valueOf(it.scanDelimiter("\n"))
 				d.write16(parameter.code)
+				val svcData = ByteArrayOutputStream()
 				when (parameter) {
 					HTTPSParameters.MANDATORY -> {
 						val mandatory = it.scanDelimiter("\n").split(',')
-						d.write16(mandatory.size * 2)
-						mandatory.forEach { key -> d.write16(HTTPSParameters.valueOf(key).code) }
+						mandatory.forEach { key -> svcData.write16(HTTPSParameters.valueOf(key).code) }
 					}
 
 					HTTPSParameters.ADDITIONAL_SUPPORTED_PROTOCOLS -> {
 						val alpns = it.scanDelimiter("\n").split(',')
-						d.write16(alpns.sumOf { a -> a.length } + alpns.size)
 						alpns.forEach { alpn ->
-							d.write(alpn.length)
-							d.writeString(alpn)
+							svcData.write(alpn.length)
+							svcData.writeString(alpn)
 						}
 					}
 
-					else -> throw UnsupportedOperationException("Unsupported HTTP parameter: $parameter")
+					HTTPSParameters.NO_SUPPORT_FOR_DEFAULT_PROTOCOL -> {}
+					HTTPSParameters.ALTERNATIVE_PORT -> d.write16(it.scanDelimiter("\n").toInt())
+					HTTPSParameters.IPV4_HINT -> {
+						val ips = it.scanDelimiter("\n").split(',')
+						ips.forEach { ip -> svcData.write((Inet4Address.getByName(ip) as Inet4Address).address) }
+					}
+
+					HTTPSParameters.IPV6_HINT -> {
+						val ips = it.scanDelimiter("\n").split(',')
+						ips.forEach { ip -> svcData.write((Inet4Address.getByName(ip) as Inet6Address).address) }
+					}
+
+					HTTPSParameters.ENCRYPTED_CLIENT_HELLO -> TODO("Encrypted Client Hello configuration")
 				}
+				d.write16(svcData.size())
+				d.write(svcData.toByteArray())
 			}
 			d.toByteArray()
 		}
