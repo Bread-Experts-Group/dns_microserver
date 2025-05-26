@@ -30,7 +30,7 @@ fun dnsExecution(logger: Logger, recordStore: File, data: ByteArray, maxLength: 
 	) else if (
 		message.reply || message.questions.isEmpty() ||
 		message.questions.any { it.name !is DNSLabelLiteral } ||
-		opt?.eDNSVersion != 0
+		(opt != null && opt.eDNSVersion != 0)
 	) DNSMessage.reply(
 		message, maxLength,
 		authoritative = true, authenticData = false, recursionAvailable = false,
