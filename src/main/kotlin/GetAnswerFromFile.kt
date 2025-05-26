@@ -1,6 +1,7 @@
 package org.bread_experts_group.dns_microserver
 
 import org.bread_experts_group.dns.DNSClass
+import org.bread_experts_group.dns.DNSLabel
 import org.bread_experts_group.dns.DNSResourceRecord
 import org.bread_experts_group.dns.DNSType
 import org.bread_experts_group.dns.https.HTTPSParameters
@@ -17,7 +18,7 @@ import java.io.FileInputStream
 import java.net.Inet4Address
 import java.net.Inet6Address
 
-fun getAnswerFromFile(name: String, file: File): DNSResourceRecord = FileInputStream(file).use {
+fun getAnswerFromFile(name: DNSLabel, file: File): DNSResourceRecord = FileInputStream(file).use {
 	fun readRemainder() = it.readAllBytes().decodeToString().trim()
 
 	val ttl = it.scanDelimiter("\n").toLong()

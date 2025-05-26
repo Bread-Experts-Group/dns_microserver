@@ -11,6 +11,7 @@ import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetSocketAddress
 import java.net.ServerSocket
+import java.util.logging.Level
 
 fun main(args: Array<String>) {
 	val logger = ColoredLogger.newLogger("DNS Main")
@@ -54,39 +55,35 @@ fun main(args: Array<String>) {
 	logger.info("- Server loop (Record Store: $recordStore)")
 	Thread.ofPlatform().name("DNS UDP").start {
 		while (true) {
-			Thread.currentThread().name = "DNS-UDP"
+			Thread.currentThread().name = "UDP (unconnected)"
 			try {
 				val packet = DatagramPacket(ByteArray(65000), 65000)
 				udpSocket.receive(packet)
-				Thread.currentThread().name = "UDP-${packet.socketAddress}"
+				Thread.currentThread().name = "UDP ${packet.socketAddress}"
 				val localLogger = ColoredLogger.newLogger("DNS UDP ${packet.socketAddress}")
 				val reply = dnsExecution(localLogger, recordStore, packet.data, 512)
-				if (reply != null) {
-					packet.setData(reply)
-					udpSocket.send(packet)
-				}
+				packet.setData(reply)
+				udpSocket.send(packet)
 			} catch (e: Exception) {
-				logger.severe { "UDP FAIL. ${e.stackTraceToString()}" }
+				logger.log(Level.SEVERE, "Failure during UDP operation", e)
 			}
 		}
 	}
 	Thread.ofPlatform().name("DNS TCP").start {
 		while (true) {
+			Thread.currentThread().name = "TCP (unconnected)"
 			val socket = tcpSocket.accept()
-			Thread.currentThread().name = "DNS-TCP"
 			try {
-				Thread.currentThread().name = "TCP-${socket.remoteSocketAddress}"
+				Thread.currentThread().name = "TCP ${socket.remoteSocketAddress}"
 				val localLogger = ColoredLogger.newLogger("DNS TCP ${socket.remoteSocketAddress}")
 				val data = socket.inputStream.readNBytes(socket.inputStream.read16ui())
 				val reply = dnsExecution(localLogger, recordStore, data)
-				if (reply != null) {
-					socket.outputStream.write16(reply.size)
-					socket.outputStream.write(reply)
-				}
+				socket.outputStream.write16(reply.size)
+				socket.outputStream.write(reply)
 			} catch (e: Exception) {
-				logger.severe { "TCP FAIL. ${e.stackTraceToString()}" }
-				socket.close()
+				logger.log(Level.SEVERE, "Failure during TCP operation", e)
 			}
+			socket.close()
 		}
 	}
 }
