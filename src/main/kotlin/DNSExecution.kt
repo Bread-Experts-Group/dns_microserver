@@ -19,9 +19,8 @@ fun dnsExecution(logger: Logger, recordStore: File, data: ByteArray, maxLength: 
 		if (it.rrType == DNSType.OPT__OPTION) it as DNSOptionRecord
 		else null
 	}
-	val (maxLength, additional) = if (opt != null) {
-		opt.dnsPayloadSize to listOf(DNSOptionRecord(opt.dnsPayloadSize))
-	} else maxLength to emptyList<DNSResourceRecord>()
+	val (maxLength, additional) = if (opt != null) opt.dnsPayloadSize to listOf(DNSOptionRecord(opt.dnsPayloadSize))
+	else maxLength to emptyList<DNSResourceRecord>()
 	val error = if (message.opcode != DNSOpcode.QUERY) DNSMessage.reply(
 		message, maxLength,
 		authoritative = true, authenticData = false, recursionAvailable = false,
